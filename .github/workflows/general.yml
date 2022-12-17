@@ -71,6 +71,7 @@ jobs:
           SKIP_DOCKER=true ./scripts/init_db.sh
       - name: Check sqlx-data.json is up-to-date
         run: |
+          cargo clean
           cargo sqlx prepare --check -- --bin zero2prod
       - name: Run cargo test
         uses: actions-rs/cargo@v1
