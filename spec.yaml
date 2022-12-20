@@ -10,8 +10,8 @@ services:
       repo: ptasz3k/zero2prod
     health_check:
       http_path: /health_check
-      http_port: 8000
-      instance_count: 1
-      instance_size_slug: basic-xxs
-      routes:
-        - path: /
+    http_port: 8000
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    routes:
+      - path: /
