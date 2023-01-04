@@ -10,7 +10,7 @@ async fn main() -> std::io::Result<()> {
     init_subscriber(subscriber);
 
     let configuration = get_configuration().expect("Failed to read configuration.");
-    let application = Application::build(&configuration).await?;
+    let application = Application::build(configuration.clone()).await?;
     application.run_until_stopped().await?;
 
     Ok(())

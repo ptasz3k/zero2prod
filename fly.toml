@@ -9,6 +9,7 @@ processes = []
   image = "zero2prod"
 
 [env]
+  APP_APPLICATION__BASE_URL = "https://zero2prod-rk.fly.dev"
 
 [experimental]
   allowed_public_ports = []
