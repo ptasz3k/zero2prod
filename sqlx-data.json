@@ -13,36 +13,6 @@
     },
     "query": "insert into subscription_tokens (subscription_token, subscriber_id) values ($1, $2)"
   },
-  "199e230ae32afae044bc98fcc77a2111436b62b9d992de8f7ddce37541a16731": {
-    "describe": {
-      "columns": [
-        {
-          "name": "email",
-          "ordinal": 0,
-          "type_info": "Text"
-        },
-        {
-          "name": "name",
-          "ordinal": 1,
-          "type_info": "Text"
-        },
-        {
-          "name": "status",
-          "ordinal": 2,
-          "type_info": "Text"
-        }
-      ],
-      "nullable": [
-        false,
-        false,
-        false
-      ],
-      "parameters": {
-        "Left": []
-      }
-    },
-    "query": "select email, name, status from subscriptions"
-  },
   "39a76ca87097dab85c9d35ea5e98720b3c2c44c87222a4d5a4f4a6cbbdecca9e": {
     "describe": {
       "columns": [
@@ -77,36 +47,6 @@
       }
     },
     "query": "\n        insert into subscriptions (id, email, name, subscribed_at, status)\n        values ($1, $2, $3, $4, 'pending_confirmation')\n        "
-  },
-  "9ab6536d2bf619381573b3bf13507d53b2e9cf50051e51c803e916f25b51abd2": {
-    "describe": {
-      "columns": [
-        {
-          "name": "email",
-          "ordinal": 0,
-          "type_info": "Text"
-        },
-        {
-          "name": "name",
-          "ordinal": 1,
-          "type_info": "Text"
-        },
-        {
-          "name": "status",
-          "ordinal": 2,
-          "type_info": "Text"
-        }
-      ],
-      "nullable": [
-        false,
-        false,
-        false
-      ],
-      "parameters": {
-        "Left": []
-      }
-    },
-    "query": "SELECT email, name, status FROM subscriptions"
   },
   "be6a02c098be084a45cb6414d64965896e534ae2ec8229f1b73fa7d323f2fbe4": {
     "describe": {
