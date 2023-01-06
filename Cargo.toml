@@ -1,6 +1,6 @@
 [package]
 name = "zero2prod"
-version = "7.7.5"
+version = "7.7.6"
 edition = "2021"
 
 [lib]
@@ -26,6 +26,7 @@ secrecy = { version = "0.8", features = ["serde"] }
 serde-aux = "3"
 unicode-segmentation = "1"
 validator = "0.14"
+rand = { version = "0.8", features = ["std_rng"] }
 
 [dependencies.reqwest]
 version = "0.11"
