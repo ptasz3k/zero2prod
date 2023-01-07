@@ -113,6 +113,31 @@ async fn subscribe_sends_a_confirmation_email_with_a_link() {
     app.post_subscriptions(body.into()).await;
 
     let email_request = &app.email_server.received_requests().await.unwrap()[0];
-    let confirmation_links = app.get_confirmation_links(&email_request);
+    let confirmation_links = app.get_confirmation_links(email_request);
     assert_eq!(confirmation_links.html, confirmation_links.plain_text);
+}
+
+#[tokio::test]
+async fn subscribing_twice_sends_confirmation_email_twice_with_the_same_token() {
+    let app = spawn_app().await;
+    let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
+
+    Mock::given(path("/email"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(2)
+        .mount(&app.email_server)
+        .await;
+
+    app.post_subscriptions(body.into()).await;
+    app.post_subscriptions(body.into()).await;
+
+    let email_requests = app.email_server.received_requests().await.unwrap();
+    assert_eq!(2, email_requests.len());
+    let confirmation_links = app.get_confirmation_links(&email_requests[0]);
+    assert_eq!(confirmation_links.html, confirmation_links.plain_text);
+    assert_eq!(
+        confirmation_links.html,
+        app.get_confirmation_links(&email_requests[1]).html
+    );
 }

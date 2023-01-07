@@ -53,17 +53,31 @@ pub async fn subscribe(
         Err(_) => return HttpResponse::InternalServerError().finish(),
     };
 
-    let subscriber_id = match insert_subscriber(&mut tx, &new_subscriber).await {
-        Ok(subscriber_id) => subscriber_id,
-        Err(_) => return HttpResponse::InternalServerError().finish(),
+    let pending_subscription_token =
+        match check_and_get_token_pending_confirmation(&mut tx, &new_subscriber).await {
+            Ok(token) => token,
+            Err(_) => return HttpResponse::InternalServerError().finish(),
+        };
+
+    let subscription_token = match pending_subscription_token {
+        Some(pending_token) => pending_token,
+        None => {
+            let subscriber_id = match insert_subscriber(&mut tx, &new_subscriber).await {
+                Ok(subscriber_id) => subscriber_id,
+                Err(_) => return HttpResponse::InternalServerError().finish(),
+            };
+
+            let subscription_token = generate_subscription_token();
+
+            if store_token(&mut tx, subscriber_id, &subscription_token)
+                .await
+                .is_err()
+            {
+                return HttpResponse::InternalServerError().finish();
+            };
+            subscription_token
+        }
     };
-    let subscription_token = generate_subscription_token();
-    if store_token(&mut tx, subscriber_id, &subscription_token)
-        .await
-        .is_err()
-    {
-        return HttpResponse::InternalServerError().finish();
-    }
 
     if (tx.commit().await).is_err() {
         return HttpResponse::InternalServerError().finish();
@@ -82,6 +96,34 @@ pub async fn subscribe(
     }
 
     HttpResponse::Ok().finish()
+}
+
+#[tracing::instrument(
+    name = "Checking for an existing pending subscriber and get its token",
+    skip(tx, new_subscriber)
+)]
+async fn check_and_get_token_pending_confirmation(
+    tx: &mut Transaction<'_, Postgres>,
+    new_subscriber: &NewSubscriber,
+) -> Result<Option<String>, sqlx::Error> {
+    let token = sqlx::query!(
+        r#"
+        SELECT subscription_token FROM subscription_tokens
+        join subscriptions on subscriptions.id = subscription_tokens.subscriber_id
+        WHERE subscriptions.email = $1
+        AND subscriptions.status = 'pending_confirmation'
+        "#,
+        new_subscriber.email.as_ref()
+    )
+    .fetch_optional(tx)
+    .await
+    .map_err(|e| {
+        tracing::error!("Failed to execute query: {:?}", e);
+        e
+    })?
+    .map(|row| row.subscription_token);
+
+    Ok(token)
 }
 
 #[tracing::instrument(
