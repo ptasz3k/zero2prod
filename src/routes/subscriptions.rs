@@ -3,12 +3,11 @@ use actix_web::{
     HttpResponse,
 };
 use chrono::Utc;
-use rand::{distributions::Alphanumeric, Rng};
 use sqlx::{PgPool, Postgres, Transaction};
 use uuid::Uuid;
 
 use crate::{
-    domain::{NewSubscriber, SubscriberEmail, SubscriberName},
+    domain::{NewSubscriber, SubscriberEmail, SubscriberName, SubscriptionToken},
     email_client::EmailClient,
     startup::ApplicationBaseUrl,
 };
@@ -60,16 +59,19 @@ pub async fn subscribe(
         };
 
     let subscription_token = match pending_subscription_token {
-        Some(pending_token) => pending_token,
+        Some(pending_token) => match SubscriptionToken::parse(pending_token) {
+            Ok(token) => token,
+            Err(_) => return HttpResponse::InternalServerError().finish(),
+        },
         None => {
             let subscriber_id = match insert_subscriber(&mut tx, &new_subscriber).await {
                 Ok(subscriber_id) => subscriber_id,
                 Err(_) => return HttpResponse::InternalServerError().finish(),
             };
 
-            let subscription_token = generate_subscription_token();
+            let subscription_token = SubscriptionToken::generate();
 
-            if store_token(&mut tx, subscriber_id, &subscription_token)
+            if store_token(&mut tx, subscriber_id, subscription_token.as_ref())
                 .await
                 .is_err()
             {
@@ -87,7 +89,7 @@ pub async fn subscribe(
         &email_client,
         new_subscriber,
         &base_url.0,
-        &subscription_token,
+        subscription_token.as_ref(),
     )
     .await
     .is_err()
@@ -208,12 +210,4 @@ pub async fn insert_subscriber(
         e
     })?;
     Ok(subscriber_id)
-}
-
-fn generate_subscription_token() -> String {
-    let mut rng = rand::thread_rng();
-    std::iter::repeat_with(|| rng.sample(Alphanumeric))
-        .map(char::from)
-        .take(25)
-        .collect()
 }
