@@ -67,7 +67,6 @@ struct SendEmailRequest<'a> {
 mod tests {
     use std::time::Duration;
 
-    use claim::{assert_err, assert_ok};
     use fake::{
         faker::{internet::en::SafeEmail, lorem::en::Sentence},
         Fake, Faker,
@@ -133,7 +132,7 @@ mod tests {
             .send_email(email(), &subject(), &content(), &content())
             .await;
 
-        assert_ok!(outcome);
+        assert!(outcome.is_ok());
     }
 
     #[tokio::test]
@@ -152,7 +151,7 @@ mod tests {
             .send_email(email(), &subject(), &content(), &content())
             .await;
 
-        assert_err!(outcome);
+        assert!(outcome.is_err());
     }
 
     #[tokio::test]
@@ -170,7 +169,7 @@ mod tests {
             .send_email(email(), &subject(), &content(), &content())
             .await;
 
-        assert_err!(outcome);
+        assert!(outcome.is_err());
     }
 
     #[tokio::test]

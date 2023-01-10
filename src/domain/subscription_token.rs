@@ -38,8 +38,6 @@ impl AsRef<str> for SubscriptionToken {
 
 #[cfg(test)]
 mod tests {
-    use claim::assert_err;
-
     use crate::domain::subscription_token;
 
     use super::SubscriptionToken;
@@ -71,7 +69,7 @@ mod tests {
         let token = subscription_token::SubscriptionToken::parse(
             "a".repeat(subscription_token::TOKEN_LENGTH - 1),
         );
-        assert_err!(token);
+        assert!(token.is_err());
     }
 
     #[test]
@@ -79,6 +77,6 @@ mod tests {
         let token = subscription_token::SubscriptionToken::parse(
             "a".repeat(subscription_token::TOKEN_LENGTH - 1) + "!",
         );
-        assert_err!(token);
+        assert!(token.is_err());
     }
 }

@@ -22,7 +22,6 @@ impl AsRef<str> for SubscriberEmail {
 #[cfg(test)]
 mod tests {
     use crate::domain::SubscriberEmail;
-    use claim::assert_err;
     use fake::faker::internet::en::SafeEmail;
     use fake::Fake;
 
@@ -39,19 +38,19 @@ mod tests {
     #[test]
     fn empty_string_is_rejected() {
         let email = "".to_string();
-        assert_err!(SubscriberEmail::parse(email));
+        assert!(SubscriberEmail::parse(email).is_err());
     }
 
     #[test]
     fn email_missing_at_symbol_is_rejected() {
         let email = "ursuladomain.com".to_string();
-        assert_err!(SubscriberEmail::parse(email));
+        assert!(SubscriberEmail::parse(email).is_err());
     }
 
     #[test]
     fn email_missing_subject_is_rejected() {
         let email = "@domain.com".to_string();
-        assert_err!(SubscriberEmail::parse(email));
+        assert!(SubscriberEmail::parse(email).is_err());
     }
 
     #[quickcheck_macros::quickcheck]
