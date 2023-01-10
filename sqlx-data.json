@@ -33,6 +33,26 @@
     },
     "query": "\n        SELECT subscriber_id FROM subscription_tokens\n        WHERE subscription_token = $1\n        "
   },
+  "584e173e818f97d07841687a133ae6d04177d09194c13c9c4d77306e40ce9a09": {
+    "describe": {
+      "columns": [
+        {
+          "name": "subscription_token",
+          "ordinal": 0,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Text"
+        ]
+      }
+    },
+    "query": "\n        SELECT subscription_token FROM subscription_tokens\n        join subscriptions on subscriptions.id = subscription_tokens.subscriber_id\n        WHERE subscriptions.email = $1\n        AND subscriptions.status = 'pending_confirmation'\n        "
+  },
   "6d63457514e9be2b0fdf1b30c46a65702f37021e86c968de2eb51f9c196698da": {
     "describe": {
       "columns": [],
