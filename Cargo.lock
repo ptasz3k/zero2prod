@@ -2744,7 +2744,7 @@ dependencies = [
 
 [[package]]
 name = "zero2prod"
-version = "8.2.3"
+version = "8.3.4"
 dependencies = [
  "actix-web",
  "chrono",
@@ -2761,6 +2761,7 @@ dependencies = [
  "serde-aux",
  "serde_json",
  "sqlx",
+ "thiserror",
  "tokio",
  "tracing",
  "tracing-actix-web",

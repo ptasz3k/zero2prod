@@ -1,6 +1,6 @@
 [package]
 name = "zero2prod"
-version = "8.2.3"
+version = "8.3.4"
 edition = "2021"
 
 [lib]
@@ -27,6 +27,7 @@ serde-aux = "3"
 unicode-segmentation = "1"
 validator = "0.14"
 rand = { version = "0.8", features = ["std_rng"] }
+thiserror = "1"
 
 [dependencies.reqwest]
 version = "0.11"

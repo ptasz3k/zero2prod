@@ -74,14 +74,22 @@ pub async fn subscribe(
     Ok(HttpResponse::Ok().finish())
 }
 
+#[derive(thiserror::Error)]
 pub enum SubscribeError {
+    #[error("{0}")]
     ValidationError(String),
-    PoolError(sqlx::Error),
-    InsertSubscriberError(sqlx::Error),
-    TransactionCommitError(sqlx::Error),
-    StoreTokenError(StoreTokenError),
-    GetTokenError(GetTokenError),
-    SendEmailError(reqwest::Error),
+    #[error("Failed to acquire database connection from pool")]
+    PoolError(#[source] sqlx::Error),
+    #[error("Failed to insert subscriber")]
+    InsertSubscriberError(#[source] sqlx::Error),
+    #[error("Failed to commit transaction")]
+    TransactionCommitError(#[source] sqlx::Error),
+    #[error("Failed to store confirmation token in the database")]
+    StoreTokenError(#[from] StoreTokenError),
+    #[error("Failed to get pending confirmation token")]
+    GetTokenError(#[from] GetTokenError),
+    #[error("Failed to send confirmation email")]
+    SendEmailError(#[from] reqwest::Error),
 }
 
 impl From<String> for SubscribeError {
@@ -90,58 +98,9 @@ impl From<String> for SubscribeError {
     }
 }
 
-impl From<StoreTokenError> for SubscribeError {
-    fn from(error: StoreTokenError) -> Self {
-        Self::StoreTokenError(error)
-    }
-}
-
-impl From<GetTokenError> for SubscribeError {
-    fn from(error: GetTokenError) -> Self {
-        Self::GetTokenError(error)
-    }
-}
-
-impl From<reqwest::Error> for SubscribeError {
-    fn from(error: reqwest::Error) -> Self {
-        Self::SendEmailError(error)
-    }
-}
-
-impl std::fmt::Display for SubscribeError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::ValidationError(error) => write!(f, "{}", error),
-            Self::PoolError(_) => write!(f, "Failed to acquire database connection from the pool"),
-            Self::InsertSubscriberError(_) => write!(f, "Failed to insert subscriber"),
-            Self::TransactionCommitError(_) => write!(f, "Failed to commit transaction"),
-            Self::StoreTokenError(_) => write!(
-                f,
-                "Failed to store token confirmation for a new subscriber."
-            ),
-            Self::GetTokenError(_) => write!(f, "Failed to get token from database."),
-            Self::SendEmailError(_) => write!(f, "Failed to send confirmation email."),
-        }
-    }
-}
-
 impl std::fmt::Debug for SubscribeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         error_chain_fmt(self, f)
-    }
-}
-
-impl std::error::Error for SubscribeError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::ValidationError(_) => None,
-            Self::PoolError(error) => Some(error),
-            Self::InsertSubscriberError(error) => Some(error),
-            Self::TransactionCommitError(error) => Some(error),
-            Self::StoreTokenError(error) => Some(error),
-            Self::GetTokenError(error) => Some(error),
-            Self::SendEmailError(error) => Some(error),
-        }
     }
 }
 
