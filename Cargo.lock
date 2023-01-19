@@ -2747,6 +2747,7 @@ name = "zero2prod"
 version = "8.3.4"
 dependencies = [
  "actix-web",
+ "anyhow",
  "chrono",
  "config",
  "fake",

@@ -2,6 +2,7 @@ use actix_web::{
     web::{self, Form},
     HttpResponse, ResponseError,
 };
+use anyhow::Context;
 use chrono::Utc;
 use sqlx::{PgPool, Postgres, Transaction};
 use uuid::Uuid;
@@ -43,9 +44,7 @@ pub async fn subscribe(
     base_url: web::Data<ApplicationBaseUrl>,
 ) -> Result<HttpResponse, SubscribeError> {
     let new_subscriber = form.0.try_into()?;
-    let mut tx = pool.begin().await.map_err(|e| {
-        SubscribeError::UnexpectedError(Box::new(e), "Failed to get transaction".into())
-    })?;
+    let mut tx = pool.begin().await.context("Failed to get transaction")?;
     let pending_subscription_token =
         check_and_get_token_pending_confirmation(&mut tx, &new_subscriber).await?;
 
@@ -54,25 +53,16 @@ pub async fn subscribe(
         None => {
             let subscriber_id = insert_subscriber(&mut tx, &new_subscriber)
                 .await
-                .map_err(|e| {
-                    SubscribeError::UnexpectedError(
-                        Box::new(e),
-                        "Failed to insert new subscriber.".into(),
-                    )
-                })?;
+                .context("Failed to insert new subscriber.")?;
             let subscription_token = SubscriptionToken::generate();
             store_token(&mut tx, subscriber_id, subscription_token.as_ref())
                 .await
-                .map_err(|e| {
-                    SubscribeError::UnexpectedError(Box::new(e), "Failed to store token.".into())
-                })?;
+                .context("Failed to store token.")?;
             subscription_token
         }
     };
 
-    tx.commit().await.map_err(|e| {
-        SubscribeError::UnexpectedError(Box::new(e), "Failed to commit transaction.".into())
-    })?;
+    tx.commit().await.context("Failed to commit transaction.")?;
 
     send_confirmation_email(
         &email_client,
@@ -81,9 +71,7 @@ pub async fn subscribe(
         subscription_token.as_ref(),
     )
     .await
-    .map_err(|e| {
-        SubscribeError::UnexpectedError(Box::new(e), "Failed to send confirmation email.".into())
-    })?;
+    .context("Failed to send confirmation email.")?;
 
     Ok(HttpResponse::Ok().finish())
 }
@@ -92,8 +80,8 @@ pub async fn subscribe(
 pub enum SubscribeError {
     #[error("{0}")]
     ValidationError(String),
-    #[error("{1}")]
-    UnexpectedError(#[source] Box<dyn std::error::Error>, String),
+    #[error(transparent)]
+    UnexpectedError(#[from] anyhow::Error),
 }
 
 impl From<String> for SubscribeError {
@@ -112,7 +100,7 @@ impl ResponseError for SubscribeError {
     fn status_code(&self) -> reqwest::StatusCode {
         match self {
             Self::ValidationError(_) => reqwest::StatusCode::BAD_REQUEST,
-            Self::UnexpectedError(_, _) => reqwest::StatusCode::INTERNAL_SERVER_ERROR,
+            Self::UnexpectedError(_) => reqwest::StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }
@@ -136,10 +124,7 @@ async fn check_and_get_token_pending_confirmation(
     )
     .fetch_optional(tx)
     .await
-    .map_err(|e| {
-        tracing::error!("Failed to execute query: {:?}", e);
-        SubscribeError::UnexpectedError(Box::new(e), "Failed to fetch pending token".into())
-    })?
+    .context("Failed to fetch pending token.")?
     .map(|row| row.subscription_token);
 
     Ok(token)
