@@ -43,7 +43,9 @@ pub async fn subscribe(
     base_url: web::Data<ApplicationBaseUrl>,
 ) -> Result<HttpResponse, SubscribeError> {
     let new_subscriber = form.0.try_into()?;
-    let mut tx = pool.begin().await.map_err(SubscribeError::PoolError)?;
+    let mut tx = pool.begin().await.map_err(|e| {
+        SubscribeError::UnexpectedError(Box::new(e), "Failed to get transaction".into())
+    })?;
     let pending_subscription_token =
         check_and_get_token_pending_confirmation(&mut tx, &new_subscriber).await?;
 
@@ -52,16 +54,25 @@ pub async fn subscribe(
         None => {
             let subscriber_id = insert_subscriber(&mut tx, &new_subscriber)
                 .await
-                .map_err(SubscribeError::InsertSubscriberError)?;
+                .map_err(|e| {
+                    SubscribeError::UnexpectedError(
+                        Box::new(e),
+                        "Failed to insert new subscriber.".into(),
+                    )
+                })?;
             let subscription_token = SubscriptionToken::generate();
-            store_token(&mut tx, subscriber_id, subscription_token.as_ref()).await?;
+            store_token(&mut tx, subscriber_id, subscription_token.as_ref())
+                .await
+                .map_err(|e| {
+                    SubscribeError::UnexpectedError(Box::new(e), "Failed to store token.".into())
+                })?;
             subscription_token
         }
     };
 
-    tx.commit()
-        .await
-        .map_err(SubscribeError::TransactionCommitError)?;
+    tx.commit().await.map_err(|e| {
+        SubscribeError::UnexpectedError(Box::new(e), "Failed to commit transaction.".into())
+    })?;
 
     send_confirmation_email(
         &email_client,
@@ -69,7 +80,10 @@ pub async fn subscribe(
         &base_url.0,
         subscription_token.as_ref(),
     )
-    .await?;
+    .await
+    .map_err(|e| {
+        SubscribeError::UnexpectedError(Box::new(e), "Failed to send confirmation email.".into())
+    })?;
 
     Ok(HttpResponse::Ok().finish())
 }
@@ -78,18 +92,8 @@ pub async fn subscribe(
 pub enum SubscribeError {
     #[error("{0}")]
     ValidationError(String),
-    #[error("Failed to acquire database connection from pool")]
-    PoolError(#[source] sqlx::Error),
-    #[error("Failed to insert subscriber")]
-    InsertSubscriberError(#[source] sqlx::Error),
-    #[error("Failed to commit transaction")]
-    TransactionCommitError(#[source] sqlx::Error),
-    #[error("Failed to store confirmation token in the database")]
-    StoreTokenError(#[from] StoreTokenError),
-    #[error("Failed to get pending confirmation token")]
-    GetTokenError(#[from] GetTokenError),
-    #[error("Failed to send confirmation email")]
-    SendEmailError(#[from] reqwest::Error),
+    #[error("{1}")]
+    UnexpectedError(#[source] Box<dyn std::error::Error>, String),
 }
 
 impl From<String> for SubscribeError {
@@ -108,12 +112,7 @@ impl ResponseError for SubscribeError {
     fn status_code(&self) -> reqwest::StatusCode {
         match self {
             Self::ValidationError(_) => reqwest::StatusCode::BAD_REQUEST,
-            Self::PoolError(_)
-            | Self::InsertSubscriberError(_)
-            | Self::TransactionCommitError(_)
-            | Self::StoreTokenError(_)
-            | Self::GetTokenError(_)
-            | Self::SendEmailError(_) => reqwest::StatusCode::INTERNAL_SERVER_ERROR,
+            Self::UnexpectedError(_, _) => reqwest::StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }
@@ -125,7 +124,7 @@ impl ResponseError for SubscribeError {
 async fn check_and_get_token_pending_confirmation(
     tx: &mut Transaction<'_, Postgres>,
     new_subscriber: &NewSubscriber,
-) -> Result<Option<String>, GetTokenError> {
+) -> Result<Option<String>, SubscribeError> {
     let token = sqlx::query!(
         r#"
         SELECT subscription_token FROM subscription_tokens
@@ -139,7 +138,7 @@ async fn check_and_get_token_pending_confirmation(
     .await
     .map_err(|e| {
         tracing::error!("Failed to execute query: {:?}", e);
-        GetTokenError(e)
+        SubscribeError::UnexpectedError(Box::new(e), "Failed to fetch pending token".into())
     })?
     .map(|row| row.subscription_token);
 
